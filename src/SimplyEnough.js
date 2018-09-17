@@ -14,45 +14,55 @@ class SimplyEnough {
 
   async sendQuery(params) {
     if (!params || !params.query) {
-      throw CONST.ERROR_MESSAGE.ERROR_REQUIRED_PARAMETERS_UNDEFINED;
+      throw {
+        msg: CONST.ERROR_MESSAGE.ERROR_REQUIRED_PARAMETERS_UNDEFINED,
+        err: {}
+      };
     }
-  
+
     var query = params.query;
     var connection = undefined;
+    var errorOccured = false;
   
     // Create new connection when params.connection is not setted.
     if (params.connection) {
       connection = params.connection;
     } else {
       console.debug("Create connection");
-      connection = await createConnection();
+      connection = await this.createConnection();
     }
     // Start transaction if params.beginTransaction is setted.
     if (params.beginTransaction) {
       console.debug("Begin transaction");
-      connection = await beginTransaction({connection: connection});
+      connection = await this.beginTransaction({connection: connection});
     }
-    // Send query
-    console.debug("Send query");
     try {
-      // paramsにdoCommitが設定されていた場合、コミットする
+      console.debug("Send query");
+      res = await this.doSendQuery({connection: connection, query: query});
+
+      // Do commit when params.doCommit is setted.
       if (params.doCommit) {
         console.debug("Do commit");
-        connection = await doCommit({connection: connection});
+        connection = await this.doCommit({connection: connection});
       }
-  
-      res = await doSendQuery({connection: connection, query: query});
   
       return {
         connection: connection,
         result: res.result,
         fields: res.fields
       };
-    } catch(errMsg) {
-      throw errMsg;
+    } catch(err) {
+      errorOccured = true;
+      throw err;
     } finally {
-      // Close connection if params.closeConnection is setted.
-      if (params.closeConnection) {
+      if (errorOccured && connection._transaction_started_) {
+        // Rollback if error was occured.
+        console.debug("Rollback");
+        await this.doRollback({
+          connection: connection,
+        });
+      } else if (params.closeConnection) {
+        // Close connection if params.closeConnection is setted.
         console.debug("Close connection");
         connection.end();
       }
@@ -66,14 +76,20 @@ class SimplyEnough {
         var connection = mysql.createConnection(this._config_.db);
         resolve(connection);
       } catch(err) {
-        reject(CONST.ERROR_MESSAGE.ERROR_CREATE_CONNECTION_FAILED);
+        reject({
+          msg: CONST.ERROR_MESSAGE.ERROR_CREATE_CONNECTION_FAILED,
+          err: err
+        });
       }
     });
   };
   
   beginTransaction(params) {
     if (!params || !params.connection) {
-      return Promise.reject(CONST.ERROR_MESSAGE.ERROR_REQUIRED_PARAMETERS_UNDEFINED);
+      return Promise.reject({
+        msg: CONST.ERROR_MESSAGE.ERROR_REQUIRED_PARAMETERS_UNDEFINED,
+        err: {}
+      });
     }
   
     var connection = params.connection;
@@ -81,10 +97,14 @@ class SimplyEnough {
     return new Promise((resolve, reject)=>{
       connection.beginTransaction((err)=>{
         if (err) {
-          reject(CONST.ERROR_MESSAGE.ERROR_BEGIN_TRANSACTION_FAILED);
+          reject({
+            msg: CONST.ERROR_MESSAGE.ERROR_BEGIN_TRANSACTION_FAILED,
+            err: err
+          });
           return;
         }
   
+        connection._transaction_started_ = true;
         resolve(connection);
       });
     });
@@ -92,7 +112,10 @@ class SimplyEnough {
   
   doSendQuery(params) {
     if (!params || !params.query || !params.connection) {
-      return Promise.reject(CONST.ERROR_MESSAGE.ERROR_REQUIRED_PARAMETERS_UNDEFINED);
+      return Promise.reject({
+        msg: CONST.ERROR_MESSAGE.ERROR_REQUIRED_PARAMETERS_UNDEFINED,
+        err: {}
+      });
     }
   
     connection = params.connection;
@@ -105,7 +128,10 @@ class SimplyEnough {
             console.warn("-- send query failed --");
             console.warn(err);
             console.warn("-----------------------");
-            reject(CONST.ERROR_MESSAGE.ERROR_SEND_QUERY_FAILED);
+            reject({
+              msg: CONST.ERROR_MESSAGE.ERROR_SEND_QUERY_FAILED,
+              err: {}
+            });
             return;
           }
   
@@ -113,14 +139,38 @@ class SimplyEnough {
         });
       } catch(err) {
         console.warn(err);
-        reject(CONST.ERROR_MESSAGE.ERROR_SEND_QUERY_FAILED);
+        reject({
+          msg: CONST.ERROR_MESSAGE.ERROR_SEND_QUERY_FAILED,
+          err: err
+        });
       }
+    });
+  };
+
+  doRollback(params) {
+    if (!params || !params.connection) {
+      return Promise.reject({
+        msg: CONST.ERROR_MESSAGE.ERROR_REQUIRED_PARAMETERS_UNDEFINED,
+        err: {}
+      });
+    }
+
+    var connection = params.connection;
+
+    return new Promise((resolve, reject)=>{
+      connection.rollback(()=>{
+        delete connection._transaction_started_;
+        resolve(connection);
+      });
     });
   };
   
   async doCommit(params) {
     if (!params || !params.connection) {
-      return Promise.reject(CONST.ERROR_MESSAGE.ERROR_REQUIRED_PARAMETERS_UNDEFINED);
+      return Promise.reject({
+        msg: CONST.ERROR_MESSAGE.ERROR_REQUIRED_PARAMETERS_UNDEFINED,
+        err: {}
+      });
     }
   
     var connection = params.connection;
@@ -128,9 +178,14 @@ class SimplyEnough {
     return new Promise((resolve, reject)=>{
       connection.commit((err)=>{
         if (err) {
-          reject(CONST.ERROR_MESSAGE.ERROR_DO_COMMIT_FAILED);
+          reject({
+            msg: CONST.ERROR_MESSAGE.ERROR_DO_COMMIT_FAILED,
+            err: err
+          });
+          return;
         }
   
+        delete connection._transaction_started_;
         resolve(connection);
       });
     });

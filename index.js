@@ -1,3 +1,3 @@
-const SimplyEnough = require()
+const SimplyEnough = require('./src/SimplyEnough')
 
 module.exports = SimplyEnough;
