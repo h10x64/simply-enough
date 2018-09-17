@@ -38,7 +38,8 @@ class SimplyEnough {
     }
     try {
       console.debug("Send query");
-      res = await this.doSendQuery({connection: connection, query: query});
+      console.debug(query);
+      var res = await this.doSendQuery({connection: connection, query: query});
 
       // Do commit when params.doCommit is setted.
       if (params.doCommit) {
@@ -117,9 +118,9 @@ class SimplyEnough {
         err: {}
       });
     }
-  
-    connection = params.connection;
-    query = params.query;
+
+    var connection = params.connection;
+    var query = params.query;
   
     return new Promise((resolve, reject)=>{
       try {
