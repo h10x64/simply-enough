@@ -1,6 +1,6 @@
 {
   "name": "simply-enough",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Simply only send some query to the mysql server.",
   "main": "index.js",
   "scripts": {
