@@ -1,12 +1,16 @@
 const mysql = require('mysql');
 
+const BeThrown = require('./BeThrown');
 const CONST = require('./constants');
 
 class SimplyEnough {
   constructor(params) {
-    if (!params || !params.config) {
-      console.warn(CONST.ERROR_MESSAGE.ERROR_REQUIRED_PARAMETERS_UNDEFINED);
-      return undefined;
+    if (!params || !params.config || !params.config.db) {
+      throw new BeThrown({
+        connection: undefined,
+        message: CONST.ERROR_MESSAGE.ERROR_REQUIRED_PARAMETERS_UNDEFINED,
+        err: undefined,
+      });
     }
   
     this._config_ = params.config;
@@ -14,10 +18,11 @@ class SimplyEnough {
 
   async sendQuery(params) {
     if (!params || !params.query) {
-      throw {
-        msg: CONST.ERROR_MESSAGE.ERROR_REQUIRED_PARAMETERS_UNDEFINED,
-        err: {}
-      };
+      throw new BeThrown({
+        connection: (params && params.connection) ? params.connection : undefined,
+        message: CONST.ERROR_MESSAGE.ERROR_REQUIRED_PARAMETERS_UNDEFINED,
+        err: undefined
+      });
     }
 
     var query = params.query;
@@ -70,27 +75,31 @@ class SimplyEnough {
     }
   };
   
+
   /* Wrapper */
+  
   createConnection() {
     return new Promise((resolve, reject)=>{
       try {
         var connection = mysql.createConnection(this._config_.db);
         resolve(connection);
       } catch(err) {
-        reject({
-          msg: CONST.ERROR_MESSAGE.ERROR_CREATE_CONNECTION_FAILED,
+        reject(new BeThrown({
+          connection: undefined,
+          message: CONST.ERROR_MESSAGE.ERROR_CREATE_CONNECTION_FAILED,
           err: err
-        });
+        }));
       }
     });
   };
   
   beginTransaction(params) {
     if (!params || !params.connection) {
-      return Promise.reject({
-        msg: CONST.ERROR_MESSAGE.ERROR_REQUIRED_PARAMETERS_UNDEFINED,
-        err: {}
-      });
+      return Promise.reject(new BeThrown({
+        connection: (params && params.connection) ? params.connection : undefined,
+        message: CONST.ERROR_MESSAGE.ERROR_REQUIRED_PARAMETERS_UNDEFINED,
+        err: undefined
+      }));
     }
   
     var connection = params.connection;
@@ -98,10 +107,11 @@ class SimplyEnough {
     return new Promise((resolve, reject)=>{
       connection.beginTransaction((err)=>{
         if (err) {
-          reject({
-            msg: CONST.ERROR_MESSAGE.ERROR_BEGIN_TRANSACTION_FAILED,
+          reject(new BeThrown({
+            connection: connection,
+            message: CONST.ERROR_MESSAGE.ERROR_BEGIN_TRANSACTION_FAILED,
             err: err
-          });
+          }));
           return;
         }
   
@@ -113,10 +123,11 @@ class SimplyEnough {
   
   doSendQuery(params) {
     if (!params || !params.query || !params.connection) {
-      return Promise.reject({
-        msg: CONST.ERROR_MESSAGE.ERROR_REQUIRED_PARAMETERS_UNDEFINED,
-        err: {}
-      });
+      return Promise.reject(new BeThrown({
+        connection: (params && params.connection) ? params.connection : undefined,
+        message: CONST.ERROR_MESSAGE.ERROR_REQUIRED_PARAMETERS_UNDEFINED,
+        err: undefined
+      }));
     }
 
     var connection = params.connection;
@@ -129,10 +140,11 @@ class SimplyEnough {
             console.warn("-- send query failed --");
             console.warn(err);
             console.warn("-----------------------");
-            reject({
-              msg: CONST.ERROR_MESSAGE.ERROR_SEND_QUERY_FAILED,
-              err: {}
-            });
+            reject(new BeThrown({
+              connection: connection,
+              message: CONST.ERROR_MESSAGE.ERROR_SEND_QUERY_FAILED,
+              err: undefined
+            }));
             return;
           }
   
@@ -140,20 +152,22 @@ class SimplyEnough {
         });
       } catch(err) {
         console.warn(err);
-        reject({
-          msg: CONST.ERROR_MESSAGE.ERROR_SEND_QUERY_FAILED,
+        reject(new BeThrown({
+          connection: connection,
+          message: CONST.ERROR_MESSAGE.ERROR_SEND_QUERY_FAILED,
           err: err
-        });
+        }));
       }
     });
   };
 
   doRollback(params) {
     if (!params || !params.connection) {
-      return Promise.reject({
-        msg: CONST.ERROR_MESSAGE.ERROR_REQUIRED_PARAMETERS_UNDEFINED,
-        err: {}
-      });
+      return Promise.reject(new BeThrown({
+        connection: (params && params.connection) ? params.connection : undefined,
+        message: CONST.ERROR_MESSAGE.ERROR_REQUIRED_PARAMETERS_UNDEFINED,
+        err: undefined
+      }));
     }
 
     var connection = params.connection;
@@ -166,12 +180,13 @@ class SimplyEnough {
     });
   };
   
-  async doCommit(params) {
+  doCommit(params) {
     if (!params || !params.connection) {
-      return Promise.reject({
-        msg: CONST.ERROR_MESSAGE.ERROR_REQUIRED_PARAMETERS_UNDEFINED,
-        err: {}
-      });
+      return Promise.reject(new BeThrown({
+        connection: (params && params.connection) ? params.connection : undefined,
+        message: CONST.ERROR_MESSAGE.ERROR_REQUIRED_PARAMETERS_UNDEFINED,
+        err: undefined
+      }));
     }
   
     var connection = params.connection;
@@ -179,10 +194,11 @@ class SimplyEnough {
     return new Promise((resolve, reject)=>{
       connection.commit((err)=>{
         if (err) {
-          reject({
-            msg: CONST.ERROR_MESSAGE.ERROR_DO_COMMIT_FAILED,
+          reject(new BeThrown({
+            connection: connection,
+            message: CONST.ERROR_MESSAGE.ERROR_DO_COMMIT_FAILED,
             err: err
-          });
+          }));
           return;
         }
   
@@ -190,6 +206,49 @@ class SimplyEnough {
         resolve(connection);
       });
     });
+  };
+
+  closeConnection(params) {
+    var _this = this;
+
+    if (!params || !params.connection) {
+      return Promise.reject(new BeThrown({
+        connection: (params && params.connection) ? params.connection : undefined,
+        message: CONST.ERROR_MESSAGE.ERROR_REQUIRED_PARAMETERS_UNDEFINED,
+        err: undefined
+      }));
+    }
+  
+    var connection = params.connection;
+    
+    return new Promise((resolve, reject)=>{
+      try {
+        // Do commit when params.doCommit was setted.
+        var commitPromise = Promise.resolve();
+        if (connection._transaction_started_ && params.doCommit) {
+          commitPromise = _this.doCommit({connection: connection});
+        }
+        
+        commitPromise.then((res)=>{
+          connection.end();
+          resolve(connection);
+        }).catch((err)=>{
+          connection.end();
+          reject(err);
+        });
+      } catch (err) {
+        reject(new BeThrown({
+          connection: connection,
+          message: CONST.ERROR_MESSAGE.ERROR_CLOSE_CONNECTION_FAILED,
+          err: err
+        }));
+      }
+    });
+  };
+
+  endConnection(params) {
+    // Syntax sugar
+    return this.closeConnection(params);
   };
 };
 
