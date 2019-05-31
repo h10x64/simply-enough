@@ -106,9 +106,9 @@ class ConnectionMock {
     cb(undefined);
   };
 
-  query(sql, values, callback) {
+  query(options, values, callback) {
     this.lastParams.query = {
-      sql: sql,
+      options: options,
       values: values,
       cb: callback
     };

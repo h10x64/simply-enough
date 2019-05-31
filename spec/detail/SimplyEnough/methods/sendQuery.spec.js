@@ -50,7 +50,7 @@ describe('SimplyEnough', function() {
       se.closeConnection({connection: res.connection});
     }));
 
-    // 呼び出された引数sqlがparams.queryと等しいこと
+    // 呼び出された引数options.sqlがparams.queryと等しいこと
     it('called connection.query\'s "sql" argument must be same as the params.query', willResolve(async ()=>{
       var connectionMock = new ConnectionMock();
 
@@ -60,30 +60,9 @@ describe('SimplyEnough', function() {
         query: sendSqlStatement,
       });
 
-      expect(connectionMock.lastParams.query.sql).toBe(sendSqlStatement);
+      expect(connectionMock.lastParams.query.options.sql).toBe(sendSqlStatement);
 
       se.closeConnection({connection: res.connection});
-    }));
-
-    // トランザクション開始済のコネクションでmysql.queryメソッドが失敗した場合、connection.rollbackが呼び出されること
-    it('must call connection.rollback if connection was already started transaction and mysql.query method was failed.', willResolve(async ()=>{
-      var connectionMock = new ConnectionMock({
-        raiseQueryError: true,
-      });
-
-      var se = ConnectionMock.createMockedSEInstance(SimplyEnough, connectionMock, EASY_CONFIG);
-
-      // Do the test
-      var err = await expectToReject(
-        se.sendQuery({
-          beginTransaction: true,
-          doCommit: false,
-          closeConnection: false,
-          query: "SELECT * FROM t_foo;",
-        })
-      );
-
-      expect(connectionMock.lastParams.rollback).not.toBeUndefined();
     }));
 
     // 引数

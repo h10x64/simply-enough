@@ -25,7 +25,7 @@ class SimplyEnough {
       });
     }
 
-    var query = params.query;
+    var options = params.options || {sql: params.query};
     var connection = undefined;
     var errorOccured = false;
   
@@ -43,8 +43,7 @@ class SimplyEnough {
     }
     try {
       console.debug("Send query");
-      console.debug(query);
-      var res = await this.doSendQuery({connection: connection, query: query});
+      var res = await this.doSendQuery({connection: connection, options: options});
 
       // Do commit when params.doCommit is setted.
       if (params.doCommit) {
@@ -122,7 +121,7 @@ class SimplyEnough {
   };
   
   doSendQuery(params) {
-    if (!params || !params.query || !params.connection) {
+    if (!params || (!params.options && !params.query) || !params.connection) {
       return Promise.reject(new BeThrown({
         connection: (params && params.connection) ? params.connection : undefined,
         message: CONST.ERROR_MESSAGE.ERROR_REQUIRED_PARAMETERS_UNDEFINED,
@@ -131,11 +130,11 @@ class SimplyEnough {
     }
 
     var connection = params.connection;
-    var query = params.query;
+    var options = params.options || {sql: params.query};
   
     return new Promise((resolve, reject)=>{
       try {
-        connection.query(query, (err, result, fields) => {
+        connection.query(options, (err, result, fields) => {
           if (err) {
             console.warn("-- send query failed --");
             console.warn(err);
@@ -181,6 +180,7 @@ class SimplyEnough {
   };
   
   doCommit(params) {
+    console.debug(params);
     if (!params || !params.connection) {
       return Promise.reject(new BeThrown({
         connection: (params && params.connection) ? params.connection : undefined,

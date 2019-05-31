@@ -1,10 +1,10 @@
 {
   "name": "simply-enough",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Simply only send some query to the mysql server.",
   "main": "index.js",
   "scripts": {
-    "test": "jasmine"
+    "test": "node ./spec/spec.js"
   },
   "repository": {
     "type": "git",
@@ -20,7 +20,10 @@
     "mysql": "^2.16.0"
   },
   "devDependencies": {
+    "istanbul": "^0.4.5",
     "jasmine": "^3.2.0",
+    "jasmine-console-reporter": "^3.1.0",
+    "jasmine-node": "^1.16.2",
     "jasmine-promise-tools": "^1.1.0",
     "jasmine-spec-reporter": "^4.2.1",
     "rewire": "^4.0.1"

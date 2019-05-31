@@ -43,7 +43,7 @@ describe('SimplyEnough', function() {
         // connectionモックのqueryが呼び出されていること
         expect(connectionMock.lastParams.query).not.toBeUndefined();
         // connectionモックのquery呼び出しでqueryStrと同じ値が渡されていること
-        expect(connectionMock.lastParams.query.sql).toBe(queryStr);
+        expect(connectionMock.lastParams.query.options.sql).toBe(queryStr);
         // レスポンスがあること
         expect(res).not.toBeUndefined();
       } catch (err) {
