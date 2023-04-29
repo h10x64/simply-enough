@@ -26,6 +26,6 @@
     "jasmine-node": "^1.16.2",
     "jasmine-promise-tools": "^1.1.0",
     "jasmine-spec-reporter": "^4.2.1",
-    "rewire": "^4.0.1"
+    "rewire": "^6.0.0"
   }
 }
